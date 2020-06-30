@@ -51,7 +51,7 @@
 #	bash salmonDI_miRNA_part1.sh -h (for help information)
 #
 #	Function
-#	Analyze salmon DI miRNA-seq data, including control the quality of raw fastq; trim adapter and control the quality again; align to genome; generate read counts matrix.
+#	Analyze salmon distal intestine and head kidney miRNA-seq data, including control the quality of raw fastq; trim adapter and control the quality again; align to genome; and generate read counts matrix.
 
 
 ########### Input and output of the script1 #############
@@ -60,6 +60,7 @@
 # Step "-s/--step" is required, users have to specify which step(s) to run.
 
 # Output:
+# Folders of alignment/, cleanReads/, qualityControl/, qualityControl/cleanReads/, qualityControl/rawReads/, and quantity/ are created under ${WorkDir}
 # Clean reads are stored in ${WorkDir}/cleanReads/
 # Alignments are stored in ${WorkDir}/alignment/
 # Quality control results of raw reads and clean reads are stored in the corresponding subdirectories under ${WorkDir}/qualityControl/.
