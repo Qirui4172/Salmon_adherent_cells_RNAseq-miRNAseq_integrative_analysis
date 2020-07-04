@@ -173,6 +173,8 @@ if [[ ${Steps[@]} =~ 4 ]] || [[ $step == "All" ]];then
 	echo -e "$Time\tStep4 starts"
 	i=0
 
+	bowtie-build ${Genome}/ssa_genome.fa ${Genome}/ssa_genome
+	
 	for samplebarcode in ${SampleBarcode[@]}
 	do
 		arr=(${samplebarcode//:/ })
