@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 
+
 #----------------------------------------------------------------------------------------------------
 Usage<-function(){
 	cat("\n\tUsage: Rscript salmonDI_miRNA_part2.r <readCounts.mx> <sampleInfo> <readCounts/gene> <nonZeroLib/gene> <controlGroup> <adjPvalue> <foldChange>","\n\n",
@@ -103,7 +104,6 @@ plotDispEsts(dds)
 
 # PCA plots
 cat("PCA plot ...", "\n")
-
 PCA_Plot<-function(vst, DI.color, HK.color){
 	data<-plotPCA(vst, intgroup="Tissue", returnData=TRUE)
 	percentVar<-round(100*attr(data, "percentVar"))
@@ -111,7 +111,6 @@ PCA_Plot<-function(vst, DI.color, HK.color){
 	HK.color<-HK.color
 	ggplot(data, aes(PC1, PC2, color=Tissue))+geom_point(size=5)+scale_colour_manual(values=c("DI"={DI.color},"HK"={HK.color}))+theme_bw()+theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank(),panel.border=element_rect(size=1),text=element_text(size=20),axis.text=element_text(size=15),legend.text=element_text(size=15))+xlab(paste0("PC1: ",percentVar[1],"% variance"))+ylab(paste0("PC2: ",percentVar[2],"% variance"))+coord_fixed(ratio=2)
 }
-PCA_Plot(vst, "indianred1", "turquoise3")
 PCA_Plot(vst, "salmon", "firebrick")
 
 # correlation heatmap
@@ -134,10 +133,9 @@ cat("MA plot ...", "\n")
 plotMA(res, main="MA plot", ylim=c(-10,10))
 
 # volcano plot
-cat("volcano plot version1 ...", "\n")
-
-VolcanoPlotV1<-function(res, down.color, up.color){
-	# devide groups
+cat("volcano plot ...", "\n")
+VolcanoPlot<-function(res, down.color, up.color){
+	# divide groups
 	volcano<-as.data.frame(res)
 	volcano$significant<-as.factor(ifelse(!is.na(volcano$padj) & volcano$padj < adjP & abs(volcano$log2FoldChange)>=log2(FC), ifelse(volcano$log2FoldChange>=log2(FC), "Up", "Down"), "No"))
 	volcano$padj<-ifelse(is.na(volcano$padj),1,volcano$padj)
@@ -158,9 +156,7 @@ VolcanoPlotV1<-function(res, down.color, up.color){
 	p<-ggplot(volcano,aes(log2FoldChange,-log10(padj)))+geom_point(data=volcano[which(volcano$group==1),],color="gray",alpha=0.75)+geom_point(data=volcano[which(volcano$group==2),],color={down.color},alpha=0.75)+geom_point(data=volcano[which(volcano$group==3),],color={up.color},alpha=0.75)+geom_point(data=volcano[which(volcano$group==4),],shape=2,color={down.color},alpha=0.75)+geom_point(data=volcano[which(volcano$group==5),],shape=2,color={up.color},alpha=0.75)
 	p+labs(title="Volcano plot",x="log2FoldChange",y="-log10(padj)")+geom_hline(yintercept=-log10(adjP),linetype=2,color="gray80")+geom_vline(xintercept=c(-log2(FC),log2(FC)),linetype=2,color="gray80")+xlim(-10,10)+ylim(0,20)+theme_bw()+theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank(),panel.border=element_rect(size=1))
 }
-
-VolcanoPlotV1(res, "royalblue3", brewer.pal(11,"RdYlBu")[2])
-VolcanoPlotV1(res, "firebrick", "salmon")
+VolcanoPlot(res, "firebrick", "salmon")
 
 # DEmiRNA heatmap
 cat("DEmiRNA heatmap ...", "\n")
@@ -171,12 +167,6 @@ HeatmapPlot<-function(demir.all, DI_anno.color, HK_anno.color, heatmap.color){
 	anno.color<-list(Tissue=c(DI=DI_anno.color, HK=HK_anno.color))
 	pheatmap(assay(vst.demir),scale="row",main="Heatmap of DEmiRNAs",color={heatmap.color},cluster_cols=F,show_rownames=T,annotation_col=anno.label,annotation_colors=anno.color,annotation_names_col=F,cellwidth=15,border_color=NA)
 }
-
-DI_anno.color<-brewer.pal(8,"Dark2")[1]
-HK_anno.color<-brewer.pal(8,"Dark2")[2]
-heatmap.color<-colorRampPalette(c(rev(brewer.pal(9,"Blues")[c(2:9)]), brewer.pal(9, "OrRd")[c(2:9)]))(100)
-HeatmapPlot(demir.all, DI_anno.color, HK_anno.color, heatmap.color)
-
 DI_anno.color<-"salmon"
 HK_anno.color<-"firebrick"
 heatmap.color<-colorRampPalette(brewer.pal(9,"YlGnBu"))(100)
