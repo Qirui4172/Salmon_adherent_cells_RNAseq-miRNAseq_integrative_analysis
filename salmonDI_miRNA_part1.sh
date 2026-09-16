@@ -1,13 +1,17 @@
 #!/bin/bash
-
+set -e
 
 Time=`date "+%Y-%m-%d %H:%M:%S"`
 WorkDir="/home2/park/salmonDI_mirna"
 RawReads="/home2/park/rawData/flowcell3_mirna/fastqfiles"
 Genome="/home2/park/genome/for_miRNA"
 SampleBarcode=("DI1:CCGTCC" "DI2:GTAGAG" "DI3:GTCCGC" "DI4:GTGAAA" "DI5:GTGGCC" "DI6:GTTTCG" "HK1:ATCACG" "HK2:GATCAG" "HK3:CTTGTA" "HK4:AGTCAA" "HK5:AGTTCC" "HK6:ATGTCA")
+Samples=()
+for samplebarcode in "${SampleBarcode[@]}"; do
+	Samples+=("${samplebarcode%%:*}")
+done
 
-#-------------------------------------------------------------------------------------------------
+##=========================================================================================
 Args=`getopt -o s:h --long step:,help -- "$@"`
 eval set -- "$Args"
 
@@ -39,13 +43,12 @@ Usage()
 	echo -e "\tDate: 16-11-2019\n\n"
 }
 
-#-------------------------------------------------------------------------------------------------
-# Inspect work folder
+##=========================================================================================
+## Inspect work folder
 #if [[ $PWD != $WorkDir ]];then echo -e "\n\t*** WARNING: You're attempting to run the script in the wrong path, please run the script in the path: \"$WorkDir/\"!";Usage;exit;fi
 
-
-if ([[ $@ != *"-s"* ]]);then	# didn't specify "-s"
-	if ([[ $@ != *"-h"* ]] && [[ $# -ne 1 ]] );then # didn't specify "-s" or "-h" but input some other unclear values
+if ([[ "$@" != *"-s"* ]]);then	# didn't specify "-s"
+	if ([[ "$@" != *"-h"* ]] && [[ $# -ne 1 ]] );then # didn't specify "-s" or "-h" but input some other unclear values
 		echo -e "\n\t*** WARNING: Incorrect parameters, please check again!\n"
 	fi
 	Usage;
@@ -71,7 +74,7 @@ do
 			shift 2
 			;;
 			[1-5]*)
-			Steps=($(echo $2| sed 's/,/\t/g'))
+			Steps=($(echo "$2" | sed 's/,/\t/g'))
 			shift 2
 			;;
 		esac
@@ -90,7 +93,8 @@ done
 
 mkdir -p alignment cleanReads qualityControl qualityControl/cleanReads qualityControl/rawReads quantity
 
-#-------------------------------------------------------------------------------------------------
+##=========================================================================================
+## Step1: Quality control of raw fastq files
 echo -e "\n======================================================================================"
 echo -e "Step1: Quality control of raw fastq files\n"
 
@@ -98,10 +102,10 @@ echo -e "Step1: Quality control of raw fastq files\n"
 if [[ ${Steps[@]} =~ 1 ]] || [[ $step == "All" ]];then
 	echo -e "$Time\tStep1 starts"
 
-	for sample in ${Samples[@]}
+	for sample in "${Samples[@]}"
 	do
 		echo -e "Controlling quality of raw fastq of sample ${sample} ..."
-		fastqc -o qualityControl/rawReads -q $RawReads/${sample}*fastq.gz
+		fastqc -o qualityControl/rawReads -q "$RawReads/${sample}"*fastq.gz
 	done
 
 	echo -e "$Time\tStep1 done!"
@@ -109,7 +113,8 @@ else
 	echo -e "Step1 skipped"
 fi
 
-#-------------------------------------------------------------------------------------------------
+##=========================================================================================
+## Step2: Trim adapters
 echo -e "\n======================================================================================"
 echo -e "Step2: Trim adapters\n"
 
@@ -122,7 +127,7 @@ G1="GTTCAGAGTTCTACAGTCCGACGATC"
 if [[ ${Steps[@]} =~ 2 ]] || [[ $step == "All" ]];then
     echo -e "$Time\tStep2 starts"
 
-	for samplebarcode in ${SampleBarcode[@]}
+	for samplebarcode in "${SampleBarcode[@]}"
 	do
 		arr=(${samplebarcode//:/ })
 		sample=${arr[0]}
@@ -131,15 +136,15 @@ if [[ ${Steps[@]} =~ 2 ]] || [[ $step == "All" ]];then
 		adapt3end1=${A1_1}${barcode}${A1_2}
 		adapt3end2=${A2}
 		adapt5end=${G1}
-		rawreads=`echo ${RawReads}/${sample}*fastq`
+		rawreads=`echo "${RawReads}/${sample}"*fastq`
 
-		cutadapt -a ${adapt3end1} --no-indels -o cleanReads/${sample}.trim1.fastq ${rawreads}
-		cutadapt -a ${adapt3end2} --no-indels -o cleanReads/${sample}.trim2.fastq cleanReads/${sample}.trim1.fastq
-		cutadapt -g ${adapt5end} --no-indels -o cleanReads/${sample}.trim3.fastq cleanReads/${sample}.trim2.fastq
-		cutadapt -u 4 -u -4 --minimum-length=15 --maximum-length=35 -o cleanReads/${sample}.trim4.fastq cleanReads/${sample}.trim3.fastq
-		fastq_quality_filter -q 20 -p 85 -i cleanReads/${sample}.trim4.fastq  -o cleanReads/${sample}.fastq
+		cutadapt -a "$adapt3end1" --no-indels -o "cleanReads/${sample}.trim1.fastq" $rawreads
+		cutadapt -a "$adapt3end2" --no-indels -o "cleanReads/${sample}.trim2.fastq" "cleanReads/${sample}.trim1.fastq"
+		cutadapt -g "$adapt5end" --no-indels -o "cleanReads/${sample}.trim3.fastq" "cleanReads/${sample}.trim2.fastq"
+		cutadapt -u 4 -u -4 --minimum-length=15 --maximum-length=35 -o "cleanReads/${sample}.trim4.fastq" "cleanReads/${sample}.trim3.fastq"
+		fastq_quality_filter -q 20 -p 85 -i "cleanReads/${sample}.trim4.fastq" -o "cleanReads/${sample}.fastq"
 
-		rm cleanReads/${sample}.trim*fastq
+		rm "cleanReads/${sample}.trim"*fastq
 	done
 
 	echo -e "$Time\tStep2 done!"
@@ -147,7 +152,8 @@ else
 	echo -e "Step2 skipped"
 fi
 
-#-------------------------------------------------------------------------------------------------
+##=========================================================================================
+## Step3: Quality control of trimmed fastq
 echo -e "\n======================================================================================"
 echo -e "Step3: Quality control of trimmed fastq\n"
 
@@ -155,10 +161,10 @@ echo -e "Step3: Quality control of trimmed fastq\n"
 if [[ ${Steps[@]} =~ 3 ]] || [[ $step == "All" ]];then
 	echo -e "$Time\tStep3 starts"
 
-	for sample in ${Samples[@]}
+	for sample in "${Samples[@]}"
 	do
 		echo -e "Controlling quality of trimmed sample ${sample} ..."
-		fastqc -o qualityControl/cleanReads -q cleanReads/${sample}.fastq
+		fastqc -o qualityControl/cleanReads -q "cleanReads/${sample}.fastq"
 	done
 
 	echo -e "$Time\tStep3 done!"
@@ -166,7 +172,8 @@ else
 	echo -e "Step3 skipped"
 fi
 
-#-------------------------------------------------------------------------------------------------
+##=========================================================================================
+## Step4: Align to Atlantic salmon genome (ICSASG_v2)
 echo -e "\n======================================================================================"
 echo -e "Step4: Align to Atlantic salmon genome (ICSASG_v2)\n"
 
@@ -175,18 +182,20 @@ if [[ ${Steps[@]} =~ 4 ]] || [[ $step == "All" ]];then
 	echo -e "$Time\tStep4 starts"
 	i=0
 
-	bowtie-build ${Genome}/ssa_genome.fa ${Genome}/ssa_genome
+	bowtie-build "${Genome}/ssa_genome.fa" "${Genome}/ssa_genome"
+	rm -f "alignment/mapper_DI.txt" "alignment/mapper_HK.txt"
+	touch "alignment/mapper_DI.txt" "alignment/mapper_HK.txt"
 
-	for samplebarcode in ${SampleBarcode[@]}
+	for samplebarcode in "${SampleBarcode[@]}"
 	do
 		arr=(${samplebarcode//:/ })
 		sample=${arr[0]}
 		i=$(($i+1))
 		group=${sample:0:2}
-		echo -e "${WorkDir}/cleanReads/${sample}.fastq\t${sample}" >> alignment/mapper_${group}.txt
+		echo -e "${WorkDir}/cleanReads/${sample}.fastq\t${sample}" >> "alignment/mapper_${group}.txt"
 
-		if [[ i==6 ]];then
-			mapper.pl alignment/mapper_${group}.txt -e -d -h -i -j -l 18 -m -n -o 16 -p ${Genome}/ssa_genome -s alignment/${group}.pool.fa -t alignment/${group}.pool.arf
+		if [[ "$i" -eq 6 ]]; then
+			mapper.pl "alignment/mapper_${group}.txt" -e -d -h -i -j -l 18 -m -n -o 16 -p "${Genome}/ssa_genome" -s "alignment/${group}_pool.fa" -t "alignment/${group}.pool.arf"
 			i=0
 		fi
 	done
@@ -196,7 +205,8 @@ else
 	echo -e "Step4 skipped"
 fi
 
-#-------------------------------------------------------------------------------------------------
+##=========================================================================================
+## Step5: Generate read counts matrix
 echo -e "\n======================================================================================"
 echo -e "Step5: Generate read counts matrix\n"
 
@@ -207,20 +217,19 @@ if [[ ${Steps[@]} =~ 5 ]] || [[ $step == "All" ]];then
 	for group in "DI" "HK"
 	do
 		echo -e "Generating read counts of group ${group} ..."
-		mkdir -p quantity/${group}; cd quantity/${group}
-		quantifier.pl -p ${Genome}/ssa_hairpin.fa -m ${Genome}/ssa_mature.fa -P -r alignment/${group}_pool.fa
+		mkdir -p "quantity/${group}"; cd "quantity/${group}"
+		quantifier.pl -p "${Genome}/ssa_hairpin.fa" -m "${Genome}/ssa_mature.fa" -P -r "${WorkDir}/alignment/${group}_pool.fa"
 		cut -f1,5-10 *csv|sort -k1,1|awk 'BEGIN {FS="\t";OFS="\t";mir="";rep1=0;rep2=0;rep3=0;rep4=0;rep5=0;rep6=0;i=0;} NR==1 {print $0;next;} NR==2 {mir=$1;rep1=$2;rep2=$3;rep3=$4;rep4=$5;rep5=$6;rep6=$7;i=1;next;} $1==mir {rep1+=$2;rep2+=$3;rep3+=$4;rep4+=$5;rep5+=$6;rep6+=$7;i+=1;next;} $1!=mir {print mir,rep1/i,rep2/i,rep3/i,rep4/i,rep5/i,rep6/i;mir=$1;rep1=$2;rep2=$3;rep3=$4;rep4=$5;rep5=$6;rep6=$7;i=1;next;} END {print mir,rep1,rep2,rep3,rep4,rep5,rep6;}' > ${group}_readcounts.txt
-		cd ${WorkDir}/quantity
+		cd "${WorkDir}/quantity"
 	done
-	paste DI/DI_readcounts.txt HK/HK_readcounts.txt |cut -f1-7,9-14 > miRNA_readcounts.mx
-	cd ${WorkDir}
+	paste DI/DI_readcounts.txt HK/HK_readcounts.txt | cut -f1-7,9-14 > "${WorkDir}/miRNA_readcounts.mx"
+	cd "${WorkDir}"
 
 	echo -e "$Time\tStep5 done!"
 else
 	echo -e "Step5 skipped"
 fi
 
-#-------------------------------------------------------------------------------------------------
+##=========================================================================================
 echo -e "\n======================================================================================"
-echo -e "$Time\tDone with the whole analysis!\n"
-
+echo -e "$Time\tDone with analysis!\n"
